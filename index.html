@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Mood Log">
+  <meta name="theme-color" content="#f4f6f9">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>Mood Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:#f4f6f9; --bg-card:#ffffff; --bg-input:#f0f2f5;
+      --border:#e2e6eb; --border-focus:#2563eb;
+      --accent:#2563eb; --accent-light:#eff6ff;
+      /* mood axis: depression=blue, stable=green, mania=amber */
+      --dep-strong:#1e40af; --dep:#3b82f6; --dep-soft:#93c5fd;
+      --stable:#10b981;
+      --man-soft:#fcd34d; --man:#f59e0b; --man-strong:#ea580c;
+      --c-sleep:#8b5cf6; --c-sat:#f97316; --c-ftg:#3b82f6; --c-weight:#2563eb;
+      --success:#10b981; --danger:#ef4444;
+      --tp:#1e293b; --ts:#64748b; --tm:#94a3b8;
+      --font:'Noto Sans JP',sans-serif; --mono:'DM Mono',monospace;
+      --r-sm:8px; --r-md:12px; --r-lg:16px;
+      --tab-h:60px; --hdr-h:52px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{width:100%;height:100%;background:var(--bg);color:var(--tp);font-family:var(--font);-webkit-font-smoothing:antialiased;overflow:hidden}
+    #app{width:100%;height:100%;display:flex;flex-direction:column}
+    .app-header{height:var(--hdr-h);background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;padding-top:env(safe-area-inset-top);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+    .app-header h1{font-size:16px;font-weight:700;letter-spacing:.5px}
+    .header-date{position:absolute;right:16px;font-family:var(--mono);font-size:11px;color:var(--tm)}
+    .screens{flex:1;overflow:hidden;position:relative}
+    .screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;display:none;padding-bottom:calc(var(--tab-h) + env(safe-area-inset-bottom) + 16px)}
+    .screen.active{display:block}
+    .tab-bar{height:calc(var(--tab-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--bg-card);border-top:1px solid var(--border);display:flex;flex-shrink:0;box-shadow:0 -1px 4px rgba(0,0,0,.05)}
+    .tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--tm);transition:color .2s;-webkit-tap-highlight-color:transparent}
+    .tab-btn.active{color:var(--accent)}
+    .tab-btn .tab-icon{font-size:20px;line-height:1}
+    .tab-btn .tab-label{font-size:10px;font-weight:700}
+    .sc{padding:14px}
+    .sh{display:flex;align-items:center;gap:8px;margin:22px 0 10px}
+    .sh:first-child{margin-top:6px}
+    .sh-bar{width:4px;height:16px;border-radius:2px;flex-shrink:0}
+    .sh-title{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ts)}
+    .field{margin-bottom:12px}
+    .field-label{font-size:12px;font-weight:500;color:var(--ts);margin-bottom:6px;display:block}
+    .iw{display:flex;align-items:center;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:0 14px;height:50px;transition:border-color .15s,box-shadow .15s}
+    .iw:focus-within{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+    .iw input{flex:1;background:none;border:none;outline:none;font-family:var(--mono);font-size:20px;font-weight:500;color:var(--tp);-webkit-appearance:none;min-width:0}
+    .iw input::placeholder{color:var(--tm)}
+    .iu{font-size:13px;color:var(--tm);margin-left:6px;flex-shrink:0;font-weight:500}
+    .row2{display:flex;gap:10px}
+    .row2>.field{flex:1}
+    .sleep-result{display:flex;align-items:center;background:var(--accent-light);border:1px solid rgba(37,99,235,.2);border-radius:var(--r-md);padding:0 14px;height:50px}
+    .sleep-val{flex:1;font-family:var(--mono);font-size:20px;font-weight:500;color:var(--c-sleep)}
+    /* Mood slider */
+    .mood-display{text-align:center;padding:6px 0 14px}
+    .mood-num{font-family:var(--mono);font-size:52px;font-weight:500;line-height:1;transition:color .2s}
+    .mood-word{font-size:13px;font-weight:700;margin-top:4px;transition:color .2s}
+    .mood-slider-wrap{padding:0 4px}
+    input[type=range].mood-slider{-webkit-appearance:none;appearance:none;width:100%;height:10px;border-radius:100px;outline:none;background:linear-gradient(90deg,#1e40af 0%,#3b82f6 20%,#93c5fd 38%,#10b981 50%,#fcd34d 62%,#f59e0b 80%,#ea580c 100%)}
+    input[type=range].mood-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid var(--tp);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+    input[type=range].mood-slider::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid var(--tp);cursor:pointer}
+    .mood-scale-row{display:flex;justify-content:space-between;margin-top:8px;padding:0 2px}
+    .mood-scale-label{font-size:9px;color:var(--tm);font-family:var(--mono)}
+    /* Rating 1-10 */
+    .rating-row{display:flex;gap:4px;margin-top:6px}
+    .rating-btn{flex:1;display:flex;align-items:center;justify-content:center;padding:10px 2px;background:var(--bg-card);border:1.5px solid var(--border);border-radius:var(--r-sm);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;min-width:0}
+    .rating-num{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--tm)}
+    .rating-btn.active .rating-num{color:#fff}
+    textarea{width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;font-family:var(--font);font-size:14px;color:var(--tp);resize:none;outline:none;min-height:80px;-webkit-appearance:none}
+    textarea:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+    textarea::placeholder{color:var(--tm)}
+    /* Factors */
+    .factor-list{display:flex;flex-direction:column;gap:8px}
+    .factor-row{display:flex;align-items:center;gap:12px;background:var(--bg-card);border:1.5px solid var(--border);border-radius:var(--r-md);padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .15s}
+    .factor-row.on{border-color:var(--dep);background:rgba(59,130,246,.06)}
+    .factor-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;transition:all .15s}
+    .factor-row.on .factor-check{background:var(--dep);border-color:var(--dep)}
+    .factor-label{font-size:13px;font-weight:500;color:var(--tp);flex:1;line-height:1.3}
+    .factor-del{width:24px;height:24px;border-radius:50%;border:none;background:rgba(239,68,68,.08);color:var(--danger);font-size:12px;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+    .factor-add-row{display:flex;gap:8px;margin-top:10px}
+    .factor-add-input{flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;font-family:var(--font);font-size:14px;color:var(--tp);outline:none;-webkit-appearance:none;min-width:0}
+    .factor-add-input:focus{border-color:var(--border-focus)}
+    .factor-add-btn{padding:10px 14px;background:var(--accent);border:none;border-radius:var(--r-sm);font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
+    /* Save */
+    .save-btn{width:100%;height:52px;background:var(--accent);border:none;border-radius:var(--r-lg);font-family:var(--font);font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin:22px 0;box-shadow:0 4px 12px rgba(37,99,235,.3);transition:opacity .2s,transform .1s;-webkit-tap-highlight-color:transparent}
+    .save-btn:active{opacity:.85;transform:scale(.98)}
+    /* Date nav */
+    .date-nav{display:flex;align-items:center;background:var(--bg-card);border-bottom:1px solid var(--border);padding:10px 14px;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+    .date-arrow{width:36px;height:36px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);font-size:22px;color:var(--tp);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+    .date-arrow:disabled{opacity:.3}
+    .date-center{flex:1;text-align:center}
+    .date-main{font-size:15px;font-weight:700}
+    .date-meta{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:2px}
+    .date-wday{font-size:11px;color:var(--ts)}
+    .badge{font-size:9px;font-weight:800;letter-spacing:.5px;padding:2px 7px;border-radius:100px}
+    .badge-today{background:var(--accent);color:#fff}
+    .badge-saved{background:rgba(16,185,129,.12);color:var(--success);border:1px solid rgba(16,185,129,.3)}
+    /* Gap reminder */
+    .gap-note{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;display:none}
+    .gap-note.show{display:block}
+    .gap-note-text{font-size:12px;color:#92400e;line-height:1.5}
+    /* Graph */
+    .graph-tabs{display:flex;background:var(--bg-card);border-bottom:1px solid var(--border)}
+    .graph-tab{flex:1;padding:11px 0;background:none;border:none;border-bottom:2px solid transparent;font-family:var(--font);font-size:13px;font-weight:700;color:var(--ts);cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .graph-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .period-bar{display:flex;gap:8px;padding:10px 14px;background:var(--bg-card);border-bottom:1px solid var(--border)}
+    .period-btn{flex:1;padding:7px 0;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);font-family:var(--font);font-size:12px;font-weight:700;color:var(--ts);cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .period-btn.active{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+    .chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+    .chart-title{font-size:12px;font-weight:700;color:var(--ts);margin-bottom:14px}
+    .chart-empty{height:70px;display:flex;align-items:center;justify-content:center;color:var(--tm);font-size:13px}
+    .legend-row{display:flex;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+    .legend-item{display:flex;align-items:center;gap:5px}
+    .legend-dot{width:8px;height:8px;border-radius:50%}
+    .legend-text{font-size:11px;color:var(--ts)}
+    .graph-panel{display:none}
+    .graph-panel.active{display:block}
+    /* Doctor summary */
+    .summary-card{background:linear-gradient(135deg,#1e293b,#334155);border-radius:var(--r-md);padding:16px;margin-bottom:14px;color:#fff}
+    .summary-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .summary-title{font-size:13px;font-weight:700}
+    .summary-sub{font-size:10px;color:#94a3b8;margin-top:2px}
+    .summary-copy{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:var(--r-sm);color:#fff;font-size:11px;font-weight:600;padding:6px 12px;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;white-space:nowrap}
+    .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+    .summary-cell{background:rgba(255,255,255,.06);border-radius:var(--r-sm);padding:10px 12px}
+    .summary-cell-label{font-size:10px;color:#94a3b8;margin-bottom:3px}
+    .summary-cell-val{font-family:var(--mono);font-size:18px;font-weight:500}
+    .summary-line{font-size:12px;color:#cbd5e1;line-height:1.7;border-top:1px solid rgba(255,255,255,.1);padding-top:10px}
+    /* Factor analysis (diverging bars) */
+    .fa-row{margin-bottom:14px}
+    .fa-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+    .fa-name{font-size:12px;font-weight:600;color:var(--tp)}
+    .fa-meta{font-family:var(--mono);font-size:10px;color:var(--tm)}
+    .fa-track{position:relative;height:22px;background:var(--bg-input);border-radius:6px;overflow:hidden}
+    .fa-center{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--tm);z-index:2}
+    .fa-bar{position:absolute;top:3px;bottom:3px;border-radius:4px}
+    .fa-val{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px;font-weight:700;z-index:3}
+    .fa-note{font-size:11px;color:var(--tm);line-height:1.6;margin-top:6px;background:var(--bg-input);border-radius:var(--r-sm);padding:10px 12px}
+    /* Settings */
+    .settings-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+    .settings-row{display:flex;align-items:center;gap:12px;padding:15px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .settings-row:active{background:var(--bg)}
+    .settings-row+.settings-row{border-top:1px solid var(--border)}
+    .s-icon{width:36px;height:36px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+    .s-label{font-size:14px;font-weight:600;color:var(--tp)}
+    .s-label.danger{color:var(--danger)}
+    .s-desc{font-size:11px;color:var(--ts);margin-top:2px}
+    .s-chev{font-size:18px;color:var(--tm)}
+    .sec-block{margin-bottom:18px}
+    .sec-label{font-size:11px;font-weight:700;color:var(--ts);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;padding-left:2px}
+    .sec-hint{font-size:11px;color:var(--tm);line-height:1.6;margin-bottom:10px;padding:0 2px}
+    /* Popup / toast */
+    .pop{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s}
+    .pop.show{opacity:1;pointer-events:auto}
+    .pop-inner{background:var(--bg-card);border-radius:var(--r-lg);padding:20px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.18);max-height:80vh;overflow-y:auto}
+    .pop-date{font-size:14px;font-weight:700;margin-bottom:10px}
+    .pop-mood{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+    .pop-mood-num{font-family:var(--mono);font-size:32px;font-weight:500;line-height:1}
+    .pop-mood-word{font-size:12px;font-weight:700}
+    .pop-scores{display:flex;gap:12px;margin-bottom:12px}
+    .pop-score{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700}
+    .pop-dot{width:9px;height:9px;border-radius:50%}
+    .pop-divider{height:1px;background:var(--border);margin:12px 0}
+    .pop-section-label{font-size:10px;font-weight:700;color:var(--tm);letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase}
+    .pop-factors{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+    .pop-factor-chip{font-size:11px;background:rgba(59,130,246,.1);color:var(--dep);border:1px solid rgba(59,130,246,.25);border-radius:100px;padding:3px 10px}
+    .pop-memo{font-size:13px;line-height:1.6;white-space:pre-wrap;color:var(--tp)}
+    .pop-empty{font-size:12px;color:var(--tm);font-style:italic}
+    .pop-close{width:100%;margin-top:16px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);font-family:var(--font);font-size:14px;font-weight:600;color:var(--ts);cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .toast{position:fixed;bottom:calc(var(--tab-h) + env(safe-area-inset-bottom) + 14px);left:50%;transform:translateX(-50%) translateY(16px);background:var(--tp);border-radius:100px;padding:10px 20px;font-size:13px;font-weight:600;color:#fff;opacity:0;transition:all .3s;pointer-events:none;z-index:3000;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:90vw;text-align:center}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .no-data{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 32px;gap:10px;text-align:center}
+    .no-data-emoji{font-size:44px}
+    .no-data-title{font-size:17px;font-weight:700;color:var(--ts)}
+    .no-data-sub{font-size:13px;color:var(--tm);line-height:1.5}
+  </style>
+</head>
+<body>
+<div id="app">
+  <header class="app-header"><h1>Mood Log</h1><span class="header-date" id="header-date"></span></header>
+  <div class="screens">
+
+    <!-- ════ INPUT ════ -->
+    <div class="screen active" id="screen-input">
+      <div class="date-nav">
+        <button class="date-arrow" id="date-prev">‹</button>
+        <div class="date-center">
+          <div class="date-main" id="date-display"></div>
+          <div class="date-meta">
+            <span class="date-wday" id="date-wday"></span>
+            <span class="badge badge-today" id="badge-today" style="display:none">TODAY</span>
+            <span class="badge badge-saved" id="badge-saved" style="display:none">記録済み</span>
+          </div>
+        </div>
+        <button class="date-arrow" id="date-next">›</button>
+      </div>
+      <div class="sc">
+        <div class="gap-note" id="gap-note"><div class="gap-note-text" id="gap-note-text"></div></div>
+
+        <div class="sh"><div class="sh-bar" style="background:var(--stable)"></div><span class="sh-title">気分（鬱 ⇄ 躁）</span></div>
+        <div class="mood-display">
+          <div class="mood-num" id="mood-num">0</div>
+          <div class="mood-word" id="mood-word">安定</div>
+        </div>
+        <div class="mood-slider-wrap">
+          <input type="range" class="mood-slider" id="mood-slider" min="-5" max="5" step="1" value="0">
+          <div class="mood-scale-row">
+            <span class="mood-scale-label">-5 抑うつ</span>
+            <span class="mood-scale-label">0 安定</span>
+            <span class="mood-scale-label">+5 躁</span>
+          </div>
+        </div>
+
+        <div class="sh"><div class="sh-bar" style="background:var(--c-sat)"></div><span class="sh-title">満足度 / 疲労感</span></div>
+        <div class="field"><label class="field-label">1日の満足度（1〜10）</label><div class="rating-row" id="rating-satisfaction"></div></div>
+        <div class="field"><label class="field-label">疲労感（1〜10）</label><div class="rating-row" id="rating-fatigue"></div></div>
+
+        <div class="sh"><div class="sh-bar" style="background:var(--c-sleep)"></div><span class="sh-title">睡眠</span></div>
+        <div class="field"><label class="field-label">就寝時刻</label>
+          <div class="row2">
+            <div class="field" style="margin:0"><div class="iw"><input type="number" inputmode="numeric" id="bedH" placeholder="23"><span class="iu">時</span></div></div>
+            <div class="field" style="margin:0"><div class="iw"><input type="number" inputmode="numeric" id="bedM" placeholder="00"><span class="iu">分</span></div></div>
+          </div>
+        </div>
+        <div class="field"><label class="field-label">起床時刻</label>
+          <div class="row2">
+            <div class="field" style="margin:0"><div class="iw"><input type="number" inputmode="numeric" id="wakeH" placeholder="7"><span class="iu">時</span></div></div>
+            <div class="field" style="margin:0"><div class="iw"><input type="number" inputmode="numeric" id="wakeM" placeholder="00"><span class="iu">分</span></div></div>
+          </div>
+        </div>
+        <div class="field"><label class="field-label">睡眠時間</label><div class="sleep-result"><span id="sleepCalc" class="sleep-val">--</span><span class="iu">h</span></div></div>
+
+        <div class="sh"><div class="sh-bar" style="background:var(--c-weight)"></div><span class="sh-title">体重</span></div>
+        <div class="field"><div class="iw"><input type="number" inputmode="decimal" id="weight" placeholder="0.0"><span class="iu">kg</span></div></div>
+
+        <div class="sh"><div class="sh-bar" style="background:var(--tm)"></div><span class="sh-title">特記事項</span></div>
+        <textarea id="memo" placeholder="気分が動いたきっかけ、出来事、考えていたことなど..."></textarea>
+
+        <div class="sh"><div class="sh-bar" style="background:var(--dep)"></div><span class="sh-title">きっかけ（任意・複数可）</span></div>
+        <div class="factor-list" id="factor-list"></div>
+        <div class="factor-add-row">
+          <input type="text" class="factor-add-input" id="factor-add-input" placeholder="新しいきっかけを追加...">
+          <button class="factor-add-btn" id="factor-add-btn">追加</button>
+        </div>
+
+        <button class="save-btn" id="save-btn">保存する</button>
+      </div>
+    </div>
+
+    <!-- ════ GRAPH ════ -->
+    <div class="screen" id="screen-graph">
+      <div class="graph-tabs">
+        <button class="graph-tab active" data-tab="mood">気分リズム</button>
+        <button class="graph-tab" data-tab="condition">コンディション</button>
+        <button class="graph-tab" data-tab="factor">きっかけ</button>
+      </div>
+      <div class="period-bar" id="period-bar">
+        <button class="period-btn" data-days="14">14日</button>
+        <button class="period-btn active" data-days="30">30日</button>
+        <button class="period-btn" data-days="60">60日</button>
+        <button class="period-btn" data-days="90">90日</button>
+      </div>
+      <div class="sc">
+        <!-- Mood rhythm -->
+        <div class="graph-panel active" id="panel-mood">
+          <div class="summary-card" id="summary-card" style="display:none">
+            <div class="summary-head">
+              <div><div class="summary-title">通院サマリー</div><div class="summary-sub" id="summary-period">直近3週間</div></div>
+              <button class="summary-copy" id="summary-copy">コピー</button>
+            </div>
+            <div class="summary-grid" id="summary-grid"></div>
+            <div class="summary-line" id="summary-line"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">気分スコアの推移（-5 抑うつ 〜 +5 躁）</div>
+            <div style="font-size:10px;color:var(--tm);margin-bottom:8px">💬 グラフをタップするとその日の詳細を表示</div>
+            <canvas id="ch-mood"></canvas>
+            <div class="chart-empty" id="em-mood" style="display:none">まだ記録がありません</div>
+          </div>
+          <div id="no-mood-data" class="no-data" style="display:none"><div class="no-data-emoji">📈</div><div class="no-data-title">まだ記録がありません</div><div class="no-data-sub">記録タブから今日の調子を残しましょう</div></div>
+        </div>
+        <!-- Condition -->
+        <div class="graph-panel" id="panel-condition">
+          <div class="chart-card"><div class="chart-title">😴 睡眠時間 (h)</div><canvas id="ch-sleep"></canvas><div class="chart-empty" id="em-sleep" style="display:none">データなし</div></div>
+          <div class="chart-card">
+            <div class="chart-title">⭐ 満足度 / 疲労感 (1–10)</div>
+            <div class="legend-row"><div class="legend-item"><div class="legend-dot" style="background:var(--c-sat)"></div><span class="legend-text">満足度</span></div><div class="legend-item"><div class="legend-dot" style="background:var(--c-ftg)"></div><span class="legend-text">疲労感</span></div></div>
+            <canvas id="ch-cond"></canvas><div class="chart-empty" id="em-cond" style="display:none">データなし</div>
+          </div>
+          <div class="chart-card"><div class="chart-title">⚖️ 体重 (kg)</div><canvas id="ch-weight"></canvas><div class="chart-empty" id="em-weight" style="display:none">データなし</div></div>
+        </div>
+        <!-- Factor analysis -->
+        <div class="graph-panel" id="panel-factor">
+          <div class="chart-card">
+            <div class="chart-title">きっかけ別・該当日の平均気分</div>
+            <div style="font-size:11px;color:var(--tm);margin-bottom:14px;line-height:1.6">各きっかけが「あった日」の気分スコアの平均です。左（青）に伸びるほど、その日の気分が低かったことを表します。あくまで傾向であり、原因の断定ではありません。気づきとして主治医との対話にお使いください。</div>
+            <div id="fa-list"></div>
+            <div class="chart-empty" id="em-factor" style="display:none">まだきっかけの記録がありません</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ SETTINGS ════ -->
+    <div class="screen" id="screen-settings">
+      <div class="sc">
+        <div class="sec-block">
+          <div class="sec-label">📋 きっかけの管理</div>
+          <div class="sec-hint">記録タブで選べる「きっかけ」の一覧です。使わないものは削除でき、新しいものを追加できます。</div>
+          <div class="settings-card" style="padding:14px"><div class="factor-list" id="factor-list-settings"></div>
+            <div class="factor-add-row">
+              <input type="text" class="factor-add-input" id="factor-add-input-2" placeholder="新しいきっかけを追加...">
+              <button class="factor-add-btn" id="factor-add-btn-2">追加</button>
+            </div>
+          </div>
+        </div>
+        <div class="sec-block">
+          <div class="sec-label">💾 バックアップ</div>
+          <div class="settings-card">
+            <div class="settings-row" id="btn-export-csv"><div class="s-icon" style="background:rgba(37,99,235,.1)">📤</div><div style="flex:1"><div class="s-label">CSVを書き出す</div><div class="s-desc">記録をCSVファイルに出力します</div></div><span class="s-chev">›</span></div>
+            <div class="settings-row" id="btn-export-json"><div class="s-icon" style="background:rgba(139,92,246,.1)">🗂</div><div style="flex:1"><div class="s-label">バックアップを書き出す (JSON)</div><div class="s-desc">記録ときっかけ設定をまとめて保存</div></div><span class="s-chev">›</span></div>
+            <div class="settings-row" id="btn-import-json"><div class="s-icon" style="background:rgba(16,185,129,.1)">📥</div><div style="flex:1"><div class="s-label">バックアップから復元 (JSON)</div><div class="s-desc">書き出したJSONから記録を復元します</div></div><span class="s-chev">›</span></div>
+            <div class="settings-row" id="btn-restore-sheets"><div class="s-icon" style="background:rgba(66,133,244,.1)">☁️</div><div style="flex:1"><div class="s-label">スプレッドシートから復元</div><div class="s-desc">Googleシートの記録を端末に取り込みます</div></div><span class="s-chev">›</span></div>
+          </div>
+        </div>
+        <div class="sec-block">
+          <div class="sec-label">⚙️ 同期設定</div>
+          <div class="sec-hint">Googleスプレッドシートへ自動保存する場合、書き出し先のURLを設定します（任意）。空欄でもCSV・JSON・端末内保存は使えます。</div>
+          <div class="settings-card" style="padding:14px">
+            <div class="field" style="margin:0"><label class="field-label">Google Apps Script のURL</label><div class="iw" style="height:auto;padding:10px 14px"><input type="text" id="gas-url" placeholder="https://script.google.com/..." style="font-family:var(--font);font-size:13px"></div></div>
+            <button class="save-btn" style="margin:12px 0 0;height:44px;font-size:13px" id="btn-save-gas">URLを保存</button>
+          </div>
+        </div>
+        <div class="sec-block">
+          <div class="sec-label">🗑 データ削除</div>
+          <div class="settings-card">
+            <div class="settings-row" id="btn-delete-all"><div class="s-icon" style="background:rgba(239,68,68,.1)">🗑</div><div style="flex:1"><div class="s-label danger">全データを削除</div><div class="s-desc">記録をすべて消去します（復元不可）</div></div><span class="s-chev">›</span></div>
+          </div>
+        </div>
+        <div class="sec-block">
+          <div class="sec-label">ℹ️ アプリ情報</div>
+          <div class="settings-card"><div style="display:flex;justify-content:space-between;padding:14px 15px"><span style="font-size:14px;color:var(--ts)">バージョン</span><span style="font-size:14px;font-weight:500">1.0.0</span></div></div>
+        </div>
+        <input type="file" id="json-file-input" accept=".json" style="display:none">
+      </div>
+    </div>
+  </div>
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-screen="input" id="tab-input"><span class="tab-icon">📝</span><span class="tab-label">記録</span></button>
+    <button class="tab-btn" data-screen="graph" id="tab-graph"><span class="tab-icon">📊</span><span class="tab-label">グラフ</span></button>
+    <button class="tab-btn" data-screen="settings" id="tab-settings"><span class="tab-icon">⚙️</span><span class="tab-label">設定</span></button>
+  </nav>
+</div>
+<div class="toast" id="toast"></div>
+<div class="pop" id="pop">
+  <div class="pop-inner">
+    <div class="pop-date" id="pop-date"></div>
+    <div class="pop-mood" id="pop-mood"></div>
+    <div class="pop-scores" id="pop-scores"></div>
+    <div class="pop-divider"></div>
+    <div class="pop-section-label">きっかけ</div>
+    <div class="pop-factors" id="pop-factors"></div>
+    <div class="pop-divider"></div>
+    <div class="pop-section-label">特記事項</div>
+    <div id="pop-memo"></div>
+    <button class="pop-close" id="pop-close">閉じる</button>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+/* ═══ Utils ═══ */
+function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function fmtJP(s){const d=new Date(s+'T00:00:00');return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;}
+function wdayStr(s){const d=new Date(s+'T00:00:00');return ['日','月','火','水','木','金','土'][d.getDay()]+'曜日';}
+function wdayShort(s){const d=new Date(s+'T00:00:00');return ['日','月','火','水','木','金','土'][d.getDay()];}
+function addDays(s,n){const p=s.split('-');const d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+n);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function daysBetween(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000);}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+
+/* mood word + color */
+function moodWord(v){
+  if(v==null)return{w:'記録なし',c:'#94a3b8'};
+  if(v<=-4)return{w:'強い抑うつ',c:'#1e40af'};
+  if(v<=-2)return{w:'抑うつ',c:'#3b82f6'};
+  if(v<=-1)return{w:'やや低め',c:'#60a5fa'};
+  if(v===0)return{w:'安定',c:'#10b981'};
+  if(v<=1)return{w:'やや高め',c:'#fcd34d'};
+  if(v<=3)return{w:'軽い高揚',c:'#f59e0b'};
+  return{w:'強い高揚（躁）',c:'#ea580c'};
+}
+
+/* ═══ State ═══ */
+const state = {
+  date: todayStr(), mood:0, sat:5, ftg:5,
+  tab:'input', graphTab:'mood', period:30,
+  charts:{}, activeFactors:new Set(), records:[],
+};
+
+/* ═══ Factors (localStorage) ═══ */
+const DEFAULT_FACTORS = [
+  {id:'sleep_lack', label:'睡眠不足'},
+  {id:'exercise_lack', label:'運動不足'},
+  {id:'nutrition', label:'栄養バランスの乱れ'},
+  {id:'work_social', label:'仕事の対人ストレス（気を使う）'},
+  {id:'deadline', label:'〆切に追われた'},
+  {id:'big_resp', label:'責任の重い仕事が複数'},
+  {id:'new_people', label:'初対面の人と会った'},
+  {id:'comparison', label:'比較による劣等感'},
+  {id:'flashback', label:'嫌な記憶のフラッシュバック'},
+];
+function loadFactorDefs(){
+  try{
+    const s=localStorage.getItem('moodFactors');
+    if(s){const a=JSON.parse(s);if(Array.isArray(a)&&a.length)return a;}
+  }catch(e){}
+  return DEFAULT_FACTORS.slice();
+}
+function saveFactorDefs(defs){localStorage.setItem('moodFactors',JSON.stringify(defs));}
+let factorDefs = loadFactorDefs();
+function factorLabel(id){const f=factorDefs.find(x=>x.id===id);return f?f.label:id;}
+
+/* ═══ IndexedDB ═══ */
+let db;
+function openDB(){
+  return new Promise((res,rej)=>{
+    const q=indexedDB.open('MoodLogDB',1);
+    q.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains('records'))d.createObjectStore('records',{keyPath:'date'});};
+    q.onsuccess=e=>{db=e.target.result;res(db);};
+    q.onerror=e=>rej(e.target.error);
+  });
+}
+const os=(m)=>db.transaction('records',m).objectStore('records');
+const dbGet=k=>new Promise((r,j)=>{const q=os('readonly').get(k);q.onsuccess=e=>r(e.target.result||null);q.onerror=e=>j(e.target.error);});
+const dbPut=v=>new Promise((r,j)=>{const q=os('readwrite').put(v);q.onsuccess=e=>r(e.target.result);q.onerror=e=>j(e.target.error);});
+const dbDel=k=>new Promise((r,j)=>{const q=os('readwrite').delete(k);q.onsuccess=()=>r();q.onerror=e=>j(e.target.error);});
+const dbAll=()=>new Promise((r,j)=>{const q=os('readonly').getAll();q.onsuccess=e=>r(e.target.result.sort((a,b)=>a.date.localeCompare(b.date)));q.onerror=e=>j(e.target.error);});
+
+/* ═══ GAS Sync (optional, URL set in settings) ═══ */
+function gasUrl(){return localStorage.getItem('moodGasUrl')||'';}
+async function syncToSheets(record){
+  const url=gasUrl();
+  if(!url)return false;
+  try{
+    // スプレッドシートには読みやすいラベルで書き出す
+    const payload={recordType:'mood',...record,factors:(record.factors||[]).map(factorLabel)};
+    const full=url+'?action=save&data='+encodeURIComponent(JSON.stringify(payload));
+    await fetch(full,{mode:'cors',redirect:'follow'}).catch(()=>fetch(full,{mode:'no-cors',redirect:'follow'}));
+    return true;
+  }catch(e){return false;}
+}
+// ラベル → 既存ID（なければ新規ID作成）
+function labelToId(label){
+  label=String(label).trim();
+  const f=factorDefs.find(x=>x.label===label);
+  if(f)return f.id;
+  const nid=uid();
+  factorDefs.push({id:nid,label});
+  saveFactorDefs(factorDefs);
+  return nid;
+}
+async function restoreFromSheets(){
+  const url=gasUrl();
+  if(!url){showToast('先に同期設定でURLを保存してください');return;}
+  showToast('🔄 復元中...');
+  try{
+    const res=await fetch(url+'?t='+Date.now());
+    const json=await res.json();
+    if(json.status!=='ok'||!json.records||!json.records.length){showToast('データが見つかりません');return;}
+    const MAP={'日付':'date','気分スコア':'mood','満足度(1-10)':'satisfaction','疲労感(1-10)':'fatigue','就寝(時)':'bedH','就寝(分)':'bedM','起床(時)':'wakeH','起床(分)':'wakeM','睡眠時間(h)':'sleepHours','体重(kg)':'weight','特記事項':'memo','きっかけ':'factorsRaw'};
+    const toN=v=>(v===''||v==null)?null:Number(v);
+    let n=0;
+    for(const row of json.records){
+      const r={};
+      for(const [jp,en] of Object.entries(MAP)){
+        if(!(jp in row))continue;
+        const v=row[jp];
+        if(en==='date'||en==='memo')r[en]=(v===''||v==null)?null:String(v);
+        else if(en==='factorsRaw')r.factors=(v===''||v==null)?[]:String(v).split('|').map(s=>s.trim()).filter(Boolean).map(labelToId);
+        else r[en]=toN(v);
+      }
+      if(!r.date)continue;
+      if(!r.factors)r.factors=[];
+      r.updatedAt=new Date().toISOString();
+      await dbPut(r);n++;
+    }
+    await loadForm();
+    showToast(`✅ ${n}件を復元しました`);
+  }catch(e){showToast('❌ 復元に失敗しました');}
+}
+
+/* ═══ Date Nav ═══ */
+function updateNav(saved){
+  const isToday=state.date===todayStr();
+  document.getElementById('date-display').textContent=fmtJP(state.date);
+  document.getElementById('date-wday').textContent=wdayStr(state.date);
+  document.getElementById('header-date').textContent=state.date;
+  document.getElementById('badge-today').style.display=isToday?'inline-block':'none';
+  document.getElementById('badge-saved').style.display=saved?'inline-block':'none';
+  document.getElementById('date-next').disabled=isToday;
+  document.getElementById('save-btn').textContent=saved?'上書き保存する':'保存する';
+}
+document.getElementById('date-prev').addEventListener('click',()=>nav(-1));
+document.getElementById('date-next').addEventListener('click',()=>nav(1));
+async function nav(d){const next=addDays(state.date,d);if(next>todayStr())return;state.date=next;await loadForm();}
+
+/* ═══ Mood slider ═══ */
+const moodSlider=document.getElementById('mood-slider');
+function setMood(v){
+  state.mood=v;
+  moodSlider.value=v;
+  const m=moodWord(v);
+  const numEl=document.getElementById('mood-num');
+  numEl.textContent=(v>0?'+':'')+v;
+  numEl.style.color=m.c;
+  const wEl=document.getElementById('mood-word');
+  wEl.textContent=m.w;
+  wEl.style.color=m.c;
+}
+moodSlider.addEventListener('input',e=>setMood(parseInt(e.target.value)));
+
+/* ═══ Sleep ═══ */
+function calcSleep(){
+  const bh=parseInt(document.getElementById('bedH').value);
+  const bm=parseInt(document.getElementById('bedM').value)||0;
+  const wh=parseInt(document.getElementById('wakeH').value);
+  const wm=parseInt(document.getElementById('wakeM').value)||0;
+  if(isNaN(bh)||isNaN(wh)){document.getElementById('sleepCalc').textContent='--';return null;}
+  let m=(wh*60+wm)-(bh*60+bm);if(m<=0)m+=1440;
+  const h=Math.round(m/60*10)/10;
+  document.getElementById('sleepCalc').textContent=h;
+  return h;
+}
+['bedH','bedM','wakeH','wakeM'].forEach(id=>document.getElementById(id).addEventListener('input',calcSleep));
+
+/* ═══ Rating 1-10 ═══ */
+const RC={satisfaction:'#f97316',fatigue:'#3b82f6'};
+['satisfaction','fatigue'].forEach(type=>{
+  const row=document.getElementById('rating-'+type);
+  for(let i=1;i<=10;i++){
+    const b=document.createElement('button');
+    b.className='rating-btn';b.dataset.val=i;
+    b.innerHTML=`<span class="rating-num">${i}</span>`;
+    b.addEventListener('click',()=>setRating(type,i));
+    row.appendChild(b);
+  }
+});
+function setRating(type,val){
+  state[type==='satisfaction'?'sat':'ftg']=val;
+  document.querySelectorAll(`#rating-${type} .rating-btn`).forEach(b=>{
+    const a=parseInt(b.dataset.val)===val;
+    b.classList.toggle('active',a);
+    b.style.background=a?RC[type]:'';b.style.borderColor=a?RC[type]:'';
+    b.querySelector('.rating-num').style.color=a?'#fff':'';
+  });
+}
+
+/* ═══ Factors (input form) ═══ */
+function renderFactorList(){
+  const c=document.getElementById('factor-list');
+  c.innerHTML=factorDefs.map(f=>`
+    <div class="factor-row ${state.activeFactors.has(f.id)?'on':''}" data-id="${f.id}">
+      <div class="factor-check">${state.activeFactors.has(f.id)?'✓':''}</div>
+      <div class="factor-label">${f.label}</div>
+    </div>`).join('');
+  c.querySelectorAll('.factor-row').forEach(row=>{
+    row.addEventListener('click',()=>{
+      const id=row.dataset.id;
+      if(state.activeFactors.has(id))state.activeFactors.delete(id);
+      else state.activeFactors.add(id);
+      renderFactorList();
+    });
+  });
+}
+function addFactor(label,inputEl){
+  label=label.trim();if(!label)return;
+  if(factorDefs.some(f=>f.label===label)){showToast('同じきっかけが既にあります');return;}
+  factorDefs.push({id:uid(),label});
+  saveFactorDefs(factorDefs);
+  if(inputEl)inputEl.value='';
+  renderFactorList();renderFactorSettings();
+  showToast('きっかけを追加しました');
+}
+document.getElementById('factor-add-btn').addEventListener('click',()=>addFactor(document.getElementById('factor-add-input').value,document.getElementById('factor-add-input')));
+document.getElementById('factor-add-input').addEventListener('keydown',e=>{if(e.key==='Enter')addFactor(e.target.value,e.target);});
+
+/* factor management in settings */
+function renderFactorSettings(){
+  const c=document.getElementById('factor-list-settings');
+  c.innerHTML=factorDefs.map(f=>`
+    <div class="factor-row" style="cursor:default" data-id="${f.id}">
+      <div class="factor-label">${f.label}</div>
+      <button class="factor-del" data-id="${f.id}">×</button>
+    </div>`).join('');
+  c.querySelectorAll('.factor-del').forEach(b=>{
+    b.addEventListener('click',()=>{
+      if(!confirm(`「${factorLabel(b.dataset.id)}」を一覧から削除しますか？\n（過去の記録のデータは残ります）`))return;
+      factorDefs=factorDefs.filter(f=>f.id!==b.dataset.id);
+      saveFactorDefs(factorDefs);
+      renderFactorSettings();renderFactorList();
+      showToast('削除しました');
+    });
+  });
+}
+document.getElementById('factor-add-btn-2').addEventListener('click',()=>addFactor(document.getElementById('factor-add-input-2').value,document.getElementById('factor-add-input-2')));
+document.getElementById('factor-add-input-2').addEventListener('keydown',e=>{if(e.key==='Enter')addFactor(e.target.value,e.target);});
+
+/* ═══ Form load/save ═══ */
+function clearForm(){
+  ['bedH','bedM','wakeH','wakeM','weight','memo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('sleepCalc').textContent='--';
+  setMood(0);setRating('satisfaction',5);setRating('fatigue',5);
+  state.activeFactors=new Set();
+}
+async function loadForm(){
+  clearForm();
+  const r=await dbGet(state.date);
+  if(r){
+    if(r.mood!=null)setMood(r.mood);
+    if(r.satisfaction!=null)setRating('satisfaction',r.satisfaction);
+    if(r.fatigue!=null)setRating('fatigue',r.fatigue);
+    ['bedH','bedM','wakeH','wakeM','weight'].forEach(id=>{if(r[id]!=null)document.getElementById(id).value=r[id];});
+    calcSleep();
+    if(r.memo)document.getElementById('memo').value=r.memo;
+    state.activeFactors=new Set(r.factors||[]);
+  }
+  renderFactorList();
+  updateNav(!!r);
+  if(state.date===todayStr())await checkGap();
+  else document.getElementById('gap-note').classList.remove('show');
+}
+async function saveRecord(){
+  const r={date:state.date};
+  r.mood=state.mood;
+  r.satisfaction=state.sat;
+  r.fatigue=state.ftg;
+  ['bedH','bedM','wakeH','wakeM'].forEach(id=>{const v=document.getElementById(id).value.trim();r[id]=v!==''?parseInt(v):null;});
+  const wv=document.getElementById('weight').value.trim();
+  r.weight=wv!==''?parseFloat(wv):null;
+  r.sleepHours=calcSleep();
+  r.memo=document.getElementById('memo').value.trim()||null;
+  r.factors=Array.from(state.activeFactors);
+  r.updatedAt=new Date().toISOString();
+  await dbPut(r);
+  updateNav(true);
+  document.getElementById('gap-note').classList.remove('show');
+  syncToSheets(r).then(ok=>showToast(ok?'✅ 保存・同期しました':'✅ 保存しました'));
+}
+document.getElementById('save-btn').addEventListener('click',saveRecord);
+
+/* ═══ Gap reminder (on open) ═══ */
+async function checkGap(){
+  const all=await dbAll();
+  const note=document.getElementById('gap-note');
+  if(!all.length){note.classList.remove('show');return;}
+  // skip if today already recorded
+  if(all.some(r=>r.date===todayStr())){note.classList.remove('show');return;}
+  const last=all[all.length-1].date;
+  const gap=daysBetween(last,todayStr());
+  if(gap>=2){
+    document.getElementById('gap-note-text').textContent=
+      `前回の記録から${gap}日空いています。記録が空くこと自体も、調子の波のサインかもしれません。無理のない範囲で、今日の調子を残しておきませんか。`;
+    note.classList.add('show');
+  }else{
+    note.classList.remove('show');
+  }
+}
+
+/* ═══ Tabs ═══ */
+function switchTab(t){
+  ['input','graph','settings'].forEach(x=>{
+    document.getElementById('screen-'+x).classList.toggle('active',x===t);
+    document.getElementById('tab-'+x).classList.toggle('active',x===t);
+  });
+  state.tab=t;
+  if(t==='graph')renderGraph();
+  if(t==='settings'){renderFactorSettings();document.getElementById('gas-url').value=gasUrl();}
+}
+document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.screen)));
+document.querySelectorAll('.graph-tab').forEach(b=>{
+  b.addEventListener('click',()=>{
+    state.graphTab=b.dataset.tab;
+    document.querySelectorAll('.graph-tab').forEach(x=>x.classList.toggle('active',x===b));
+    document.querySelectorAll('.graph-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+state.graphTab));
+    renderGraph();
+  });
+});
+document.querySelectorAll('.period-btn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    state.period=+b.dataset.days;
+    document.querySelectorAll('.period-btn').forEach(x=>x.classList.toggle('active',x===b));
+    renderGraph();
+  });
+});
+
+/* ═══ Charts ═══ */
+const BO={
+  responsive:true,maintainAspectRatio:true,animation:{duration:300},spanGaps:true,
+  plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e293b',borderColor:'#334155',borderWidth:1,titleColor:'#f8fafc',bodyColor:'#94a3b8',padding:10}},
+  scales:{x:{grid:{color:'#f1f5f9'},ticks:{color:'#94a3b8',font:{family:"'DM Mono'",size:10},maxRotation:0,maxTicksLimit:8}},
+          y:{grid:{color:'#f1f5f9'},ticks:{color:'#94a3b8',font:{family:"'DM Mono'",size:10}}}}
+};
+function line(data,color){return{data,borderColor:color,backgroundColor:'transparent',borderWidth:2.5,fill:false,pointRadius:4,pointHitRadius:8,pointBackgroundColor:color,pointBorderColor:'#fff',pointBorderWidth:2,tension:.3,spanGaps:true};}
+function yRange(vals,pad=.2){const v=vals.filter(x=>x!=null).map(Number);if(!v.length)return{};let mn=Math.min(...v),mx=Math.max(...v);const p=(mx-mn||1)*pad;return{min:Math.max(0,+(mn-p).toFixed(1)),max:+(mx+p).toFixed(1)};}
+function drawChart(cid,eid,labels,datasets,yr={},extra={}){
+  const cv=document.getElementById(cid),em=document.getElementById(eid);
+  const has=datasets.some(d=>d.data.some(v=>v!=null));
+  if(!has){cv.style.display='none';em.style.display='flex';return;}
+  cv.style.display='block';em.style.display='none';
+  if(state.charts[cid])state.charts[cid].destroy();
+  const o=JSON.parse(JSON.stringify(BO));
+  if(Object.keys(yr).length)o.scales.y={...o.scales.y,...yr};
+  if(extra.legend)o.plugins.legend={display:true,position:'bottom',labels:{boxWidth:10,font:{size:10},color:'#64748b',padding:12}};
+  if(extra.onClick)o.onClick=extra.onClick;
+  if(extra.interaction)o.interaction=extra.interaction;
+  state.charts[cid]=new Chart(cv,{type:'line',data:{labels,datasets},options:o});
+}
+
+async function renderGraph(){
+  const all=await dbAll();
+  const cutoff=addDays(todayStr(),-state.period+1);
+  const recs=all.filter(r=>r.date>=cutoff);
+  state.records=recs;
+  const labels=recs.map(r=>r.date.slice(5).replace('-','/'));
+
+  if(state.graphTab==='mood'){
+    const nd=document.getElementById('no-mood-data');
+    if(!recs.length){nd.style.display='flex';document.getElementById('summary-card').style.display='none';}
+    else{nd.style.display='none';}
+    // mood chart: fill to 0, two colors
+    const moodVals=recs.map(r=>r.mood);
+    const cv=document.getElementById('ch-mood'),em=document.getElementById('em-mood');
+    if(!moodVals.some(v=>v!=null)){cv.style.display='none';em.style.display='flex';}
+    else{
+      cv.style.display='block';em.style.display='none';
+      if(state.charts['ch-mood'])state.charts['ch-mood'].destroy();
+      const o=JSON.parse(JSON.stringify(BO));
+      o.scales.y={...o.scales.y,min:-5,max:5,ticks:{...o.scales.y.ticks,stepSize:1,callback:v=>v>0?'+'+v:v}};
+      o.scales.y.grid={color:c=>c.tick.value===0?'#475569':'#f1f5f9',lineWidth:c=>c.tick.value===0?1.5:1};
+      o.interaction={mode:'index',axis:'x',intersect:false};
+      o.onClick=(e,els)=>{if(els.length){const r=state.records[els[0].index];if(r)showPop(r);}};
+      state.charts['ch-mood']=new Chart(cv,{type:'line',data:{labels,datasets:[{
+        data:moodVals,
+        borderColor:'#475569',borderWidth:2.5,tension:.3,spanGaps:true,
+        pointRadius:5,pointHitRadius:12,pointBorderColor:'#fff',pointBorderWidth:2,
+        pointBackgroundColor:c=>{const v=c.parsed?.y;return moodWord(v).c;},
+        segment:{borderColor:c=>{const a=c.p0.parsed.y,b=c.p1.parsed.y,m=(a+b)/2;return moodWord(Math.round(m)).c;}},
+        fill:{target:{value:0},above:'rgba(245,158,11,0.12)',below:'rgba(59,130,246,0.12)'},
+      }]},options:o});
+      setupMoodTouch();
+    }
+    await renderSummary(all);
+  }
+
+  if(state.graphTab==='condition'){
+    drawChart('ch-sleep','em-sleep',labels,[line(recs.map(r=>r.sleepHours),'#8b5cf6')],yRange(recs.map(r=>r.sleepHours)));
+    const satDS={...line(recs.map(r=>r.satisfaction),'#f97316'),pointRadius:5,borderWidth:3};
+    const ftgDS={...line(recs.map(r=>r.fatigue),'#3b82f6'),pointRadius:5,borderWidth:3,borderDash:[6,3],pointStyle:'rectRounded'};
+    drawChart('ch-cond','em-cond',labels,[satDS,ftgDS],{min:0,max:10},{legend:true});
+    drawChart('ch-weight','em-weight',labels,[line(recs.map(r=>r.weight),'#2563eb')],yRange(recs.map(r=>r.weight),.15));
+  }
+
+  if(state.graphTab==='factor'){
+    renderFactorAnalysis(recs);
+  }
+}
+
+/* mood chart touch (iOS) */
+let _moodTH=null;
+function setupMoodTouch(){
+  const cv=document.getElementById('ch-mood');
+  if(!cv)return;
+  if(_moodTH)cv.removeEventListener('touchend',_moodTH);
+  _moodTH=function(e){
+    e.preventDefault();
+    const t=e.changedTouches[0],ch=state.charts['ch-mood'];
+    if(!ch)return;
+    const rc=cv.getBoundingClientRect();
+    const pts=ch.getElementsAtEventForMode({offsetX:t.clientX-rc.left,offsetY:t.clientY-rc.top,native:e},'index',{axis:'x',intersect:false},false);
+    if(!pts.length)return;
+    const r=state.records[pts[0].index];
+    if(r)showPop(r);
+  };
+  cv.addEventListener('touchend',_moodTH,{passive:false});
+}
+
+/* ═══ Day detail popup ═══ */
+function showPop(r){
+  const d=new Date(r.date+'T00:00:00');
+  const w=['日','月','火','水','木','金','土'];
+  document.getElementById('pop-date').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${w[d.getDay()]}）`;
+  const m=moodWord(r.mood);
+  document.getElementById('pop-mood').innerHTML=r.mood!=null
+    ?`<div class="pop-mood-num" style="color:${m.c}">${r.mood>0?'+':''}${r.mood}</div><div class="pop-mood-word" style="color:${m.c}">${m.w}</div>`
+    :`<div class="pop-mood-word" style="color:#94a3b8">気分の記録なし</div>`;
+  const sc=document.getElementById('pop-scores');sc.innerHTML='';
+  if(r.satisfaction!=null)sc.innerHTML+=`<div class="pop-score"><div class="pop-dot" style="background:#f97316"></div><span style="color:#f97316">満足度 ${r.satisfaction}/10</span></div>`;
+  if(r.fatigue!=null)sc.innerHTML+=`<div class="pop-score"><div class="pop-dot" style="background:#3b82f6"></div><span style="color:#3b82f6">疲労感 ${r.fatigue}/10</span></div>`;
+  if(r.sleepHours!=null)sc.innerHTML+=`<div class="pop-score"><div class="pop-dot" style="background:#8b5cf6"></div><span style="color:#8b5cf6">睡眠 ${r.sleepHours}h</span></div>`;
+  const fc=document.getElementById('pop-factors');
+  const factors=r.factors||[];
+  fc.innerHTML=factors.length?factors.map(id=>`<span class="pop-factor-chip">${factorLabel(id)}</span>`).join(''):`<span class="pop-empty">なし</span>`;
+  const memo=(r.memo!=null&&r.memo!=='null')?String(r.memo).trim():'';
+  document.getElementById('pop-memo').innerHTML=memo?`<div class="pop-memo">${memo}</div>`:`<div class="pop-empty">なし</div>`;
+  document.getElementById('pop').classList.add('show');
+}
+document.getElementById('pop').addEventListener('click',e=>{if(e.target.id==='pop')e.target.classList.remove('show');});
+document.getElementById('pop-close').addEventListener('click',()=>document.getElementById('pop').classList.remove('show'));
+
+/* ═══ Doctor summary (last 21 days) ═══ */
+async function renderSummary(all){
+  const card=document.getElementById('summary-card');
+  const cutoff=addDays(todayStr(),-20);
+  const recs=all.filter(r=>r.date>=cutoff&&r.mood!=null);
+  if(recs.length<2){card.style.display='none';return;}
+  card.style.display='block';
+  const moods=recs.map(r=>r.mood);
+  const avg=(moods.reduce((a,b)=>a+b,0)/moods.length);
+  const mn=Math.min(...moods),mx=Math.max(...moods);
+  const lowDay=recs.find(r=>r.mood===mn),highDay=recs.find(r=>r.mood===mx);
+  const sleeps=all.filter(r=>r.date>=cutoff&&r.sleepHours!=null).map(r=>r.sleepHours);
+  const sleepAvg=sleeps.length?(sleeps.reduce((a,b)=>a+b,0)/sleeps.length):null;
+  // factor frequency
+  const fcount={};
+  all.filter(r=>r.date>=cutoff).forEach(r=>(r.factors||[]).forEach(id=>{fcount[id]=(fcount[id]||0)+1;}));
+  const topF=Object.entries(fcount).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+  document.getElementById('summary-grid').innerHTML=`
+    <div class="summary-cell"><div class="summary-cell-label">平均気分</div><div class="summary-cell-val" style="color:${moodWord(Math.round(avg)).c}">${avg>0?'+':''}${avg.toFixed(1)}</div></div>
+    <div class="summary-cell"><div class="summary-cell-label">変動幅</div><div class="summary-cell-val">${mn>0?'+':''}${mn} 〜 ${mx>0?'+':''}${mx}</div></div>
+    <div class="summary-cell"><div class="summary-cell-label">記録日数</div><div class="summary-cell-val">${recs.length}/21</div></div>
+    <div class="summary-cell"><div class="summary-cell-label">平均睡眠</div><div class="summary-cell-val">${sleepAvg!=null?sleepAvg.toFixed(1)+'h':'--'}</div></div>`;
+
+  let line=`最も低かった日は ${lowDay.date.slice(5).replace('-','/')}（${mn}）、最も高かった日は ${highDay.date.slice(5).replace('-','/')}（${mx>0?'+':''}${mx}）。`;
+  if(topF.length)line+=` よく該当したきっかけ: ${topF.map(([id,n])=>`${factorLabel(id)}（${n}日）`).join('、')}。`;
+  document.getElementById('summary-line').textContent=line;
+
+  // build copy text
+  card._copyText=
+`【直近3週間の調子】${addDays(todayStr(),-20).replace(/-/g,'/')}〜${todayStr().replace(/-/g,'/')}
+・平均気分: ${avg>0?'+':''}${avg.toFixed(1)}（-5抑うつ〜+5躁、0が安定）
+・変動幅: ${mn} 〜 ${mx>0?'+':''}${mx}
+・記録日数: ${recs.length}/21日
+・平均睡眠: ${sleepAvg!=null?sleepAvg.toFixed(1)+'時間':'記録少'}
+・最も低い日: ${lowDay.date.replace(/-/g,'/')}（${mn}）
+・最も高い日: ${highDay.date.replace(/-/g,'/')}（${mx>0?'+':''}${mx}）
+${topF.length?'・よくあったきっかけ: '+topF.map(([id,n])=>`${factorLabel(id)}(${n}日)`).join('、'):''}`;
+}
+document.getElementById('summary-copy').addEventListener('click',()=>{
+  const t=document.getElementById('summary-card')._copyText||'';
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(()=>showToast('📋 コピーしました')).catch(()=>fallbackCopy(t));
+  }else fallbackCopy(t);
+});
+function fallbackCopy(t){
+  const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');showToast('📋 コピーしました');}catch(e){showToast('コピーできませんでした');}
+  document.body.removeChild(ta);
+}
+
+/* ═══ Factor analysis (diverging bars) ═══ */
+function renderFactorAnalysis(recs){
+  const list=document.getElementById('fa-list');
+  const em=document.getElementById('em-factor');
+  // gather: for each factor id used in period, avg mood on days active
+  const stat={};
+  recs.forEach(r=>{
+    if(r.mood==null)return;
+    (r.factors||[]).forEach(id=>{
+      if(!stat[id])stat[id]={sum:0,n:0};
+      stat[id].sum+=r.mood;stat[id].n++;
+    });
+  });
+  const rows=Object.entries(stat).map(([id,s])=>({id,avg:s.sum/s.n,n:s.n})).sort((a,b)=>a.avg-b.avg);
+  if(!rows.length){list.innerHTML='';em.style.display='flex';return;}
+  em.style.display='none';
+  // bar: center=0, range -5..+5 maps to 0..100% width, center at 50%
+  list.innerHTML=rows.map(r=>{
+    const m=moodWord(Math.round(r.avg));
+    const half=Math.min(Math.abs(r.avg)/5,1)*50; // % of half width
+    let bar,valStyle;
+    if(r.avg<0){
+      bar=`<div class="fa-bar" style="right:50%;width:${half}%;background:${m.c}"></div>`;
+      valStyle=`right:calc(50% + ${half}% + 6px);color:${m.c}`;
+    }else if(r.avg>0){
+      bar=`<div class="fa-bar" style="left:50%;width:${half}%;background:${m.c}"></div>`;
+      valStyle=`left:calc(50% + ${half}% + 6px);color:${m.c}`;
+    }else{
+      bar=`<div class="fa-bar" style="left:calc(50% - 2px);width:4px;background:${m.c}"></div>`;
+      valStyle=`left:calc(50% + 8px);color:${m.c}`;
+    }
+    return `<div class="fa-row">
+      <div class="fa-head"><span class="fa-name">${factorLabel(r.id)}</span><span class="fa-meta">${r.n}日</span></div>
+      <div class="fa-track"><div class="fa-center"></div>${bar}<span class="fa-val" style="${valStyle}">${r.avg>0?'+':''}${r.avg.toFixed(1)}</span></div>
+    </div>`;
+  }).join('');
+  // note about the most associated factor
+  const worst=rows[0];
+  if(worst&&worst.avg<-0.5&&worst.n>=2){
+    list.innerHTML+=`<div class="fa-note">この期間では「${factorLabel(worst.id)}」があった日の気分が平均${worst.avg.toFixed(1)}と低めでした。関連がありそうな要素として、主治医との対話の材料にしてみてください（因果の断定ではありません）。</div>`;
+  }
+}
+
+/* ═══ CSV / JSON ═══ */
+document.getElementById('btn-export-csv').addEventListener('click',async()=>{
+  const recs=await dbAll();
+  if(!recs.length){showToast('データがありません');return;}
+  const H=['日付','気分スコア','満足度(1-10)','疲労感(1-10)','就寝(時)','就寝(分)','起床(時)','起床(分)','睡眠時間(h)','体重(kg)','特記事項','きっかけ'];
+  const rows=recs.map(r=>[r.date,r.mood??'',r.satisfaction??'',r.fatigue??'',r.bedH??'',r.bedM??'',r.wakeH??'',r.wakeM??'',r.sleepHours??'',r.weight??'',(r.memo||'').replace(/,/g,'，').replace(/\n/g,' '),(r.factors||[]).map(factorLabel).join('|')]);
+  const csv=[H,...rows].map(r=>r.join(',')).join('\n');
+  const b=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`mood_${todayStr()}.csv`;a.click();URL.revokeObjectURL(u);
+  showToast('📤 CSVを書き出しました');
+});
+document.getElementById('btn-export-json').addEventListener('click',async()=>{
+  const data={records:await dbAll(),factors:factorDefs,exportedAt:new Date().toISOString()};
+  const b=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
+  const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`mood_backup_${todayStr()}.json`;a.click();URL.revokeObjectURL(u);
+  showToast('🗂 バックアップを書き出しました');
+});
+document.getElementById('btn-import-json').addEventListener('click',()=>document.getElementById('json-file-input').click());
+document.getElementById('json-file-input').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    const data=JSON.parse(await f.text());
+    if(Array.isArray(data.factors)&&data.factors.length){factorDefs=data.factors;saveFactorDefs(factorDefs);}
+    let n=0;
+    for(const r of (data.records||[])){if(r.date){if(!r.factors)r.factors=[];await dbPut(r);n++;}}
+    await loadForm();renderFactorSettings();
+    showToast(`📥 ${n}件を復元しました`);
+  }catch(err){alert('JSONの読み込みに失敗しました: '+err.message);}
+});
+document.getElementById('btn-restore-sheets').addEventListener('click',restoreFromSheets);
+document.getElementById('btn-save-gas').addEventListener('click',()=>{
+  const v=document.getElementById('gas-url').value.trim();
+  if(v)localStorage.setItem('moodGasUrl',v);else localStorage.removeItem('moodGasUrl');
+  showToast('保存しました');
+});
+document.getElementById('btn-delete-all').addEventListener('click',async()=>{
+  if(!confirm('すべての記録を削除します。この操作は元に戻せません。よろしいですか？'))return;
+  const recs=await dbAll();
+  for(const r of recs)await dbDel(r.date);
+  await loadForm();
+  showToast('🗑 全データを削除しました');
+});
+
+/* ═══ Toast ═══ */
+let _tt;
+function showToast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove('show'),2600);}
+
+/* ═══ Init ═══ */
+(async function(){
+  await openDB();
+  await loadForm();
+})();
+
+});
+
+/* ═══ Service Worker ═══ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js').then(reg=>{
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        nw.addEventListener('statechange',()=>{if(nw.state==='activated')window.location.reload();});
+      });
+    });
+  });
+}
+</script>
+</body>
+</html>
