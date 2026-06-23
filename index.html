@@ -52,9 +52,10 @@
     .field-label{font-size:12px;font-weight:500;color:var(--ts);margin-bottom:6px;display:block}
     .iw{display:flex;align-items:center;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:0 14px;height:50px;transition:border-color .15s,box-shadow .15s}
     .iw:focus-within{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-    .iw input{flex:1;background:none;border:none;outline:none;font-family:var(--mono);font-size:20px;font-weight:500;color:var(--tp);-webkit-appearance:none;min-width:0}
+    .iw input{flex:1;background:none;border:none;outline:none;font-family:var(--mono);font-size:20px;font-weight:500;color:var(--tp);min-width:0}
+    .iw input:not([type=time]){-webkit-appearance:none}
     .iw input::placeholder{color:var(--tm)}
-    .iw input[type=time]{font-family:var(--mono);color-scheme:light}
+    .iw input[type=time]{font-family:var(--mono);color-scheme:light;height:100%;width:100%;cursor:pointer}
     .iw input[type=time]::-webkit-date-and-time-value{text-align:left}
     .iu{font-size:13px;color:var(--tm);margin-left:6px;flex-shrink:0;font-weight:500}
     .row2{display:flex;gap:10px}
