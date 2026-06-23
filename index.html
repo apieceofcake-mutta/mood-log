@@ -54,6 +54,8 @@
     .iw:focus-within{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
     .iw input{flex:1;background:none;border:none;outline:none;font-family:var(--mono);font-size:20px;font-weight:500;color:var(--tp);-webkit-appearance:none;min-width:0}
     .iw input::placeholder{color:var(--tm)}
+    .iw input[type=time]{font-family:var(--mono);color-scheme:light}
+    .iw input[type=time]::-webkit-date-and-time-value{text-align:left}
     .iu{font-size:13px;color:var(--tm);margin-left:6px;flex-shrink:0;font-weight:500}
     .row2{display:flex;gap:10px}
     .row2>.field{flex:1}
@@ -69,6 +71,13 @@
     input[type=range].mood-slider::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid var(--tp);cursor:pointer}
     .mood-scale-row{display:flex;justify-content:space-between;margin-top:8px;padding:0 2px}
     .mood-scale-label{font-size:9px;color:var(--tm);font-family:var(--mono)}
+    .drop-counter{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;margin-top:16px}
+    .drop-counter-text{flex:1;min-width:0}
+    .drop-counter-label{font-size:12px;font-weight:600;color:var(--tp);line-height:1.3}
+    .drop-counter-sub{font-size:10px;color:var(--tm);margin-top:2px;line-height:1.3}
+    .drop-counter-num{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--dep);min-width:28px;text-align:center;flex-shrink:0}
+    .drop-btn{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg-input);font-size:18px;font-weight:700;color:var(--ts);cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;line-height:1}
+    .drop-btn-plus{border-color:var(--dep);color:var(--dep)}
     /* Rating 1-10 */
     .rating-row{display:flex;gap:4px;margin-top:6px}
     .rating-btn{flex:1;display:flex;align-items:center;justify-content:center;padding:10px 2px;background:var(--bg-card);border:1.5px solid var(--border);border-radius:var(--r-sm);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;min-width:0}
@@ -219,27 +228,28 @@
           </div>
         </div>
 
+        <div class="drop-counter">
+          <div class="drop-counter-text">
+            <div class="drop-counter-label">今日、気分が落ち込んだ回数</div>
+            <div class="drop-counter-sub">気づいた時にタップして記録（自動保存されます）</div>
+          </div>
+          <button class="drop-btn drop-btn-minus" id="drop-minus">－</button>
+          <div class="drop-counter-num" id="drop-count-num">0</div>
+          <button class="drop-btn drop-btn-plus" id="drop-plus">＋</button>
+        </div>
+
         <div class="sh"><div class="sh-bar" style="background:var(--c-sat)"></div><span class="sh-title">満足度 / 疲労感</span></div>
         <div class="field"><label class="field-label">1日の満足度（1〜10）</label><div class="rating-row" id="rating-satisfaction"></div></div>
         <div class="field"><label class="field-label">疲労感（1〜10）</label><div class="rating-row" id="rating-fatigue"></div></div>
 
         <div class="sh"><div class="sh-bar" style="background:var(--c-sleep)"></div><span class="sh-title">睡眠</span></div>
-        <div class="field"><label class="field-label">就寝時刻</label>
-          <div class="row2">
-            <div class="field" style="margin:0"><div class="iw"><input type="number" inputmode="numeric" id="bedH" placeholder="23"><span class="iu">時</span></div></div>
-            <div class="field" style="margin:0"><div class="iw"><input type="number" inputmode="numeric" id="bedM" placeholder="00"><span class="iu">分</span></div></div>
-          </div>
-        </div>
-        <div class="field"><label class="field-label">起床時刻</label>
-          <div class="row2">
-            <div class="field" style="margin:0"><div class="iw"><input type="number" inputmode="numeric" id="wakeH" placeholder="7"><span class="iu">時</span></div></div>
-            <div class="field" style="margin:0"><div class="iw"><input type="number" inputmode="numeric" id="wakeM" placeholder="00"><span class="iu">分</span></div></div>
-          </div>
-        </div>
+        <div class="field"><label class="field-label">就寝時刻</label><div class="iw"><input type="time" id="bedTime"></div></div>
+        <div class="field"><label class="field-label">起床時刻</label><div class="iw"><input type="time" id="wakeTime"></div></div>
         <div class="field"><label class="field-label">睡眠時間</label><div class="sleep-result"><span id="sleepCalc" class="sleep-val">--</span><span class="iu">h</span></div></div>
 
-        <div class="sh"><div class="sh-bar" style="background:var(--c-weight)"></div><span class="sh-title">体重</span></div>
-        <div class="field"><div class="iw"><input type="number" inputmode="decimal" id="weight" placeholder="0.0"><span class="iu">kg</span></div></div>
+        <div class="sh"><div class="sh-bar" style="background:var(--c-weight)"></div><span class="sh-title">身体</span></div>
+        <div class="field"><label class="field-label">体重</label><div class="iw"><input type="number" inputmode="decimal" id="weight" placeholder="0.0"><span class="iu">kg</span></div></div>
+        <div class="field"><label class="field-label">歩数</label><div class="iw"><input type="number" inputmode="numeric" id="steps" placeholder="0"><span class="iu">歩</span></div></div>
 
         <div class="sh"><div class="sh-bar" style="background:var(--tm)"></div><span class="sh-title">特記事項</span></div>
         <textarea id="memo" placeholder="気分が動いたきっかけ、出来事、考えていたことなど..."></textarea>
@@ -296,6 +306,7 @@
             <canvas id="ch-cond"></canvas><div class="chart-empty" id="em-cond" style="display:none">データなし</div>
           </div>
           <div class="chart-card"><div class="chart-title">⚖️ 体重 (kg)</div><canvas id="ch-weight"></canvas><div class="chart-empty" id="em-weight" style="display:none">データなし</div></div>
+          <div class="chart-card"><div class="chart-title">👟 歩数 (歩)</div><canvas id="ch-steps"></canvas><div class="chart-empty" id="em-steps" style="display:none">データなし</div></div>
         </div>
         <!-- Factor analysis -->
         <div class="graph-panel" id="panel-factor">
@@ -401,7 +412,7 @@ function moodWord(v){
 
 /* ═══ State ═══ */
 const state = {
-  date: todayStr(), mood:0, sat:5, ftg:5,
+  date: todayStr(), mood:0, sat:5, ftg:5, dropCount:0,
   tab:'input', graphTab:'mood', period:30,
   charts:{}, activeFactors:new Set(), records:[],
 };
@@ -476,7 +487,7 @@ async function restoreFromSheets(){
     const res=await fetch(url+'?t='+Date.now());
     const json=await res.json();
     if(json.status!=='ok'||!json.records||!json.records.length){showToast('データが見つかりません');return;}
-    const MAP={'日付':'date','気分スコア':'mood','満足度(1-10)':'satisfaction','疲労感(1-10)':'fatigue','就寝(時)':'bedH','就寝(分)':'bedM','起床(時)':'wakeH','起床(分)':'wakeM','睡眠時間(h)':'sleepHours','体重(kg)':'weight','特記事項':'memo','きっかけ':'factorsRaw'};
+    const MAP={'日付':'date','気分スコア':'mood','満足度(1-10)':'satisfaction','疲労感(1-10)':'fatigue','就寝(時)':'bedH','就寝(分)':'bedM','起床(時)':'wakeH','起床(分)':'wakeM','睡眠時間(h)':'sleepHours','体重(kg)':'weight','歩数':'steps','落ち込み回数':'dropCount','特記事項':'memo','きっかけ':'factorsRaw'};
     const toN=v=>(v===''||v==null)?null:Number(v);
     let n=0;
     for(const row of json.records){
@@ -527,20 +538,26 @@ function setMood(v){
   wEl.style.color=m.c;
 }
 moodSlider.addEventListener('input',e=>setMood(parseInt(e.target.value)));
+document.getElementById('drop-plus').addEventListener('click',()=>bumpDropCount(1));
+document.getElementById('drop-minus').addEventListener('click',()=>bumpDropCount(-1));
 
 /* ═══ Sleep ═══ */
 function calcSleep(){
-  const bh=parseInt(document.getElementById('bedH').value);
-  const bm=parseInt(document.getElementById('bedM').value)||0;
-  const wh=parseInt(document.getElementById('wakeH').value);
-  const wm=parseInt(document.getElementById('wakeM').value)||0;
-  if(isNaN(bh)||isNaN(wh)){document.getElementById('sleepCalc').textContent='--';return null;}
+  const bv=document.getElementById('bedTime').value;
+  const wv=document.getElementById('wakeTime').value;
+  if(!bv||!wv){document.getElementById('sleepCalc').textContent='--';return null;}
+  const [bh,bm]=bv.split(':').map(Number);
+  const [wh,wm]=wv.split(':').map(Number);
   let m=(wh*60+wm)-(bh*60+bm);if(m<=0)m+=1440;
   const h=Math.round(m/60*10)/10;
   document.getElementById('sleepCalc').textContent=h;
   return h;
 }
-['bedH','bedM','wakeH','wakeM'].forEach(id=>document.getElementById(id).addEventListener('input',calcSleep));
+['bedTime','wakeTime'].forEach(id=>document.getElementById(id).addEventListener('input',calcSleep));
+function hmToTimeStr(h,m){
+  if(h==null||isNaN(h))return'';
+  return String(h).padStart(2,'0')+':'+String(m||0).padStart(2,'0');
+}
 
 /* ═══ Rating 1-10 ═══ */
 const RC={satisfaction:'#f97316',fatigue:'#3b82f6'};
@@ -616,10 +633,12 @@ document.getElementById('factor-add-input-2').addEventListener('keydown',e=>{if(
 
 /* ═══ Form load/save ═══ */
 function clearForm(){
-  ['bedH','bedM','wakeH','wakeM','weight','memo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['bedTime','wakeTime','weight','steps','memo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('sleepCalc').textContent='--';
   setMood(0);setRating('satisfaction',5);setRating('fatigue',5);
   state.activeFactors=new Set();
+  state.dropCount=0;
+  updateDropCountUI();
 }
 async function loadForm(){
   clearForm();
@@ -628,10 +647,15 @@ async function loadForm(){
     if(r.mood!=null)setMood(r.mood);
     if(r.satisfaction!=null)setRating('satisfaction',r.satisfaction);
     if(r.fatigue!=null)setRating('fatigue',r.fatigue);
-    ['bedH','bedM','wakeH','wakeM','weight'].forEach(id=>{if(r[id]!=null)document.getElementById(id).value=r[id];});
+    document.getElementById('bedTime').value=hmToTimeStr(r.bedH,r.bedM);
+    document.getElementById('wakeTime').value=hmToTimeStr(r.wakeH,r.wakeM);
+    if(r.weight!=null)document.getElementById('weight').value=r.weight;
+    if(r.steps!=null)document.getElementById('steps').value=r.steps;
     calcSleep();
     if(r.memo)document.getElementById('memo').value=r.memo;
     state.activeFactors=new Set(r.factors||[]);
+    state.dropCount=r.dropCount||0;
+    updateDropCountUI();
   }
   renderFactorList();
   updateNav(!!r);
@@ -643,12 +667,18 @@ async function saveRecord(){
   r.mood=state.mood;
   r.satisfaction=state.sat;
   r.fatigue=state.ftg;
-  ['bedH','bedM','wakeH','wakeM'].forEach(id=>{const v=document.getElementById(id).value.trim();r[id]=v!==''?parseInt(v):null;});
+  const bv=document.getElementById('bedTime').value;
+  const wv2=document.getElementById('wakeTime').value;
+  if(bv){const[h,m]=bv.split(':').map(Number);r.bedH=h;r.bedM=m;}else{r.bedH=null;r.bedM=null;}
+  if(wv2){const[h,m]=wv2.split(':').map(Number);r.wakeH=h;r.wakeM=m;}else{r.wakeH=null;r.wakeM=null;}
   const wv=document.getElementById('weight').value.trim();
   r.weight=wv!==''?parseFloat(wv):null;
+  const sv=document.getElementById('steps').value.trim();
+  r.steps=sv!==''?parseInt(sv):null;
   r.sleepHours=calcSleep();
   r.memo=document.getElementById('memo').value.trim()||null;
   r.factors=Array.from(state.activeFactors);
+  r.dropCount=state.dropCount||0;
   r.updatedAt=new Date().toISOString();
   await dbPut(r);
   updateNav(true);
@@ -656,6 +686,23 @@ async function saveRecord(){
   syncToSheets(r).then(ok=>showToast(ok?'✅ 保存・同期しました':'✅ 保存しました'));
 }
 document.getElementById('save-btn').addEventListener('click',saveRecord);
+
+/* ═══ Mood drop counter (same-day cumulative) ═══ */
+function updateDropCountUI(){
+  const el=document.getElementById('drop-count-num');
+  if(el)el.textContent=state.dropCount||0;
+}
+async function bumpDropCount(delta){
+  state.dropCount=Math.max(0,(state.dropCount||0)+delta);
+  updateDropCountUI();
+  // その場で当日の記録に反映（保存ボタンを待たず即時保存）
+  const existing=await dbGet(state.date)||{date:state.date};
+  existing.dropCount=state.dropCount;
+  existing.updatedAt=new Date().toISOString();
+  await dbPut(existing);
+  syncToSheets(existing).catch(()=>{});
+  if(state.date===todayStr())updateNav(true);
+}
 
 /* ═══ Gap reminder (on open) ═══ */
 async function checkGap(){
@@ -767,6 +814,7 @@ async function renderGraph(){
     const ftgDS={...line(recs.map(r=>r.fatigue),'#3b82f6'),pointRadius:5,borderWidth:3,borderDash:[6,3],pointStyle:'rectRounded'};
     drawChart('ch-cond','em-cond',labels,[satDS,ftgDS],{min:0,max:10},{legend:true});
     drawChart('ch-weight','em-weight',labels,[line(recs.map(r=>r.weight),'#2563eb')],yRange(recs.map(r=>r.weight),.15));
+    drawChart('ch-steps','em-steps',labels,[line(recs.map(r=>r.steps),'#06b6d4')],yRange(recs.map(r=>r.steps),.2));
   }
 
   if(state.graphTab==='factor'){
@@ -806,6 +854,8 @@ function showPop(r){
   if(r.satisfaction!=null)sc.innerHTML+=`<div class="pop-score"><div class="pop-dot" style="background:#f97316"></div><span style="color:#f97316">満足度 ${r.satisfaction}/10</span></div>`;
   if(r.fatigue!=null)sc.innerHTML+=`<div class="pop-score"><div class="pop-dot" style="background:#3b82f6"></div><span style="color:#3b82f6">疲労感 ${r.fatigue}/10</span></div>`;
   if(r.sleepHours!=null)sc.innerHTML+=`<div class="pop-score"><div class="pop-dot" style="background:#8b5cf6"></div><span style="color:#8b5cf6">睡眠 ${r.sleepHours}h</span></div>`;
+  if(r.steps!=null)sc.innerHTML+=`<div class="pop-score"><div class="pop-dot" style="background:#06b6d4"></div><span style="color:#06b6d4">${r.steps.toLocaleString()}歩</span></div>`;
+  if(r.dropCount)sc.innerHTML+=`<div class="pop-score"><div class="pop-dot" style="background:#1e40af"></div><span style="color:#1e40af">落ち込み ${r.dropCount}回</span></div>`;
   const fc=document.getElementById('pop-factors');
   const factors=r.factors||[];
   fc.innerHTML=factors.length?factors.map(id=>`<span class="pop-factor-chip">${factorLabel(id)}</span>`).join(''):`<span class="pop-empty">なし</span>`;
@@ -829,6 +879,7 @@ async function renderSummary(all){
   const lowDay=recs.find(r=>r.mood===mn),highDay=recs.find(r=>r.mood===mx);
   const sleeps=all.filter(r=>r.date>=cutoff&&r.sleepHours!=null).map(r=>r.sleepHours);
   const sleepAvg=sleeps.length?(sleeps.reduce((a,b)=>a+b,0)/sleeps.length):null;
+  const dropTotal=all.filter(r=>r.date>=cutoff).reduce((a,r)=>a+(r.dropCount||0),0);
   // factor frequency
   const fcount={};
   all.filter(r=>r.date>=cutoff).forEach(r=>(r.factors||[]).forEach(id=>{fcount[id]=(fcount[id]||0)+1;}));
@@ -838,7 +889,8 @@ async function renderSummary(all){
     <div class="summary-cell"><div class="summary-cell-label">平均気分</div><div class="summary-cell-val" style="color:${moodWord(Math.round(avg)).c}">${avg>0?'+':''}${avg.toFixed(1)}</div></div>
     <div class="summary-cell"><div class="summary-cell-label">変動幅</div><div class="summary-cell-val">${mn>0?'+':''}${mn} 〜 ${mx>0?'+':''}${mx}</div></div>
     <div class="summary-cell"><div class="summary-cell-label">記録日数</div><div class="summary-cell-val">${recs.length}/21</div></div>
-    <div class="summary-cell"><div class="summary-cell-label">平均睡眠</div><div class="summary-cell-val">${sleepAvg!=null?sleepAvg.toFixed(1)+'h':'--'}</div></div>`;
+    <div class="summary-cell"><div class="summary-cell-label">平均睡眠</div><div class="summary-cell-val">${sleepAvg!=null?sleepAvg.toFixed(1)+'h':'--'}</div></div>
+    <div class="summary-cell"><div class="summary-cell-label">落ち込み回数</div><div class="summary-cell-val" style="color:#3b82f6">${dropTotal}回</div></div>`;
 
   let line=`最も低かった日は ${lowDay.date.slice(5).replace('-','/')}（${mn}）、最も高かった日は ${highDay.date.slice(5).replace('-','/')}（${mx>0?'+':''}${mx}）。`;
   if(topF.length)line+=` よく該当したきっかけ: ${topF.map(([id,n])=>`${factorLabel(id)}（${n}日）`).join('、')}。`;
@@ -851,6 +903,7 @@ async function renderSummary(all){
 ・変動幅: ${mn} 〜 ${mx>0?'+':''}${mx}
 ・記録日数: ${recs.length}/21日
 ・平均睡眠: ${sleepAvg!=null?sleepAvg.toFixed(1)+'時間':'記録少'}
+・気分の落ち込み回数（合計）: ${dropTotal}回
 ・最も低い日: ${lowDay.date.replace(/-/g,'/')}（${mn}）
 ・最も高い日: ${highDay.date.replace(/-/g,'/')}（${mx>0?'+':''}${mx}）
 ${topF.length?'・よくあったきっかけ: '+topF.map(([id,n])=>`${factorLabel(id)}(${n}日)`).join('、'):''}`;
@@ -915,8 +968,8 @@ function renderFactorAnalysis(recs){
 document.getElementById('btn-export-csv').addEventListener('click',async()=>{
   const recs=await dbAll();
   if(!recs.length){showToast('データがありません');return;}
-  const H=['日付','気分スコア','満足度(1-10)','疲労感(1-10)','就寝(時)','就寝(分)','起床(時)','起床(分)','睡眠時間(h)','体重(kg)','特記事項','きっかけ'];
-  const rows=recs.map(r=>[r.date,r.mood??'',r.satisfaction??'',r.fatigue??'',r.bedH??'',r.bedM??'',r.wakeH??'',r.wakeM??'',r.sleepHours??'',r.weight??'',(r.memo||'').replace(/,/g,'，').replace(/\n/g,' '),(r.factors||[]).map(factorLabel).join('|')]);
+  const H=['日付','気分スコア','満足度(1-10)','疲労感(1-10)','就寝(時)','就寝(分)','起床(時)','起床(分)','睡眠時間(h)','体重(kg)','歩数','落ち込み回数','特記事項','きっかけ'];
+  const rows=recs.map(r=>[r.date,r.mood??'',r.satisfaction??'',r.fatigue??'',r.bedH??'',r.bedM??'',r.wakeH??'',r.wakeM??'',r.sleepHours??'',r.weight??'',r.steps??'',r.dropCount??'',(r.memo||'').replace(/,/g,'，').replace(/\n/g,' '),(r.factors||[]).map(factorLabel).join('|')]);
   const csv=[H,...rows].map(r=>r.join(',')).join('\n');
   const b=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`mood_${todayStr()}.csv`;a.click();URL.revokeObjectURL(u);
